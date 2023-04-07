@@ -28,3 +28,74 @@ const OUTCOME = ['Bob wins', 'Draw', 'Alice wins'];
 
 
 Values which represent number of raised fingers(const HAND), players guess of number of raised fingers(const VOCAL), and possible outcomes are declared.
+
+const Player = (Who) => ({
+  ...stdlib.hasRandom,
+  getHand: async () => { // <-- async now
+    const hand = Math.floor(Math.random() * 6);
+    console.log(`${Who} raised ${HAND[hand]} fingers`);
+
+    if ( Math.random() <= 0.01 ) {
+      for ( let i = 0; i < 10; i++ ) {
+        console.log(`  ${Who} takes their sweet time sending it back...`);
+        await stdlib.wait(1);
+      }
+    }
+    return hand;
+  },
+
+Players number of raised fingers is randomly choosen using Math.Random and corresponding text is being print out in console.
+
+  getVocal:  async (hand) => {
+    // vocal should be greater than or equal to number of fingers thrown
+     const vocal= Math.floor(Math.random() * 6) + HAND[hand];
+    // occasional timeout
+     if ( Math.random() <= 0.01 ) {
+       for ( let i = 0; i < 10; i++ ) {
+         console.log(`  ${Who} takes their sweet time sending it back...`);
+         await stdlib.wait(1);
+       }
+     }
+     console.log(`${Who} guessed total of ${vocal}`);  
+     return vocal;
+   },
+   seeWinning: (winningNumber) => {   
+    console.log(`Actual total fingers raised: ${winningNumber}`);
+  },
+
+
+  
+  seeOutcome: (outcome) => {
+    console.log(`${Who} saw outcome ${OUTCOME[outcome]}`);
+  },
+  informTimeout: () => {
+    console.log(`${Who} observed a timeout`);
+  },
+});
+
+Methods which enable player to guess a certain number of fingers(getVocal), see the winner and outcome of the game are being declared.
+
+await Promise.all([
+  ctcAlice.p.Alice({
+    ...Player('Alice'),
+    wager: stdlib.parseCurrency(5),
+    deadline: 10,
+  }),
+  ctcBob.p.Bob({
+    ...Player('Bob'),
+    acceptWager: (amt) => {
+      console.log(`Bob accepts the wager of ${fmt(amt)}.`); //Bob accepts wager
+    },
+  }),
+]);
+
+Backends for Alice and Bob are deployed. Alice sets the wager, and Bob accepts it. Deadline is set to 10 seconds.
+
+
+const afterAlice = await getBalance(accAlice);
+const afterBob = await getBalance(accBob);
+
+console.log(`Alice went from ${beforeAlice} to ${afterAlice}.`);
+console.log(`Bob went from ${beforeBob} to ${afterBob}.`);
+
+Variables afterAlice and afterBob obtain the new values of players accounts balances, and are then displayed in console.
