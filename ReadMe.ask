@@ -1,5 +1,16 @@
 Reach Morra assignment for Faculty of Organizational Sciences
 
+Morra is an old hand game in which two players show each other hand with a certain number of fingers raised, 
+while simultaneously pronouncing a number. The player which guesses the total number of raised fingers  is the winner.
+
+To play this game, You will need to have Docker, WSL(if on Windows) and Reach installed. 
+To run the game, mark the reach as an executable file using 'chmod +x reach' and run the game by executing '/reach run' in terminal.
+
+
+
+
+
+
 index.mjs:
 
 import { loadStdlib } from '@reach-sh/stdlib';
