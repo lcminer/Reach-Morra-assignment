@@ -1,9 +1,10 @@
 Reach Morra assignment for Faculty of Organizational Sciences
 
-Morra is an old hand game in which two players show each other hand with a certain number of fingers raised, 
+Morra is a very old hand game in which two players show each other a hand with a certain number of fingers raised, 
 while simultaneously pronouncing a number. The player which guesses the total number of raised fingers  is the winner.
 
 To play this game, You will need to have Docker, WSL(if on Windows) and Reach installed. 
+Before running the game execute export REACH_CONNECTOR_MODE=ALGO
 To run the game, mark the reach as an executable file using 'chmod +x reach' and run the game by executing './reach run' in terminal.
 
 
@@ -13,100 +14,182 @@ To run the game, mark the reach as an executable file using 'chmod +x reach' and
 
 index.mjs:
 
-import { loadStdlib } from '@reach-sh/stdlib';
+import { loadStdlib,ask } from '@reach-sh/stdlib';
 import * as backend from './build/index.main.mjs';
-const stdlib = loadStdlib(process.env);
+const stdlib = loadStdlib();
 
-const startingBalance = stdlib.parseCurrency(100);
-const accAlice = await stdlib.newTestAccount(startingBalance);
-const accBob = await stdlib.newTestAccount(startingBalance);
+This part of code imports needed modules and loads Reach standard library
+
+
+
+const isAlice = await ask.ask(
+  `Are you Alice?`,
+  ask.yesno
+);
+
+Takes input from user using ask library to determine if user is Alice or Bob
+
+
+const who = isAlice ? 'Alice' : 'Bob';
+console.log(`Launching game as ${who}`);
+
+Variable who stores the data of choosen player based on users input
+
+
+let acc = null;
+
+Account variable
+
+const createAcc = await ask.ask(
+  `Would you like to create an account?`,
+  ask.yesno 
+);
+
+if (createAcc) {
+  acc = await stdlib.newTestAccount(stdlib.parseCurrency(1000));
+} else {
+  const secret = await ask.ask(`What is your account secret?`, (x => x));
+  acc = await stdlib.newAccountFromSecret(secret);
+}
+Prompts user whether they want to create an account or not. If they chose yes, new
+test account with 1000 coins will be created, and if not account from inputted secret will be created
+
+
+let ctc = null;
+
+ctc variable
+
+if (isAlice) {
+  ctc = acc.contract(backend);
+  ctc.getInfo().then((info) => {
+    console.log(`The contract is deployed as = ${JSON.stringify(info)}`);
+  });
+} else {
+  const info = await ask.ask(
+    `Please paste the contract information:`,
+    JSON.parse
+  );
+  ctc = acc.contract(backend, info);
+}
+
+If function determines if user is Alice, in which case contract is deployed using backend, and contract
+information is outputted in console. If the user is not Alice, they will have to paste contract 
+information in order to create a contract.
+
+
 
 const fmt = (x) => stdlib.formatCurrency(x, 4);
-const getBalance = async (who) => fmt(await stdlib.balanceOf(who));
-const beforeAlice = await getBalance(accAlice);
-const beforeBob = await getBalance(accBob);
 
-const ctcAlice = accAlice.contract(backend);
-const ctcBob = accBob.contract(backend, ctcAlice.getInfo());
+Function fmt takes the value of x and formats it as a string with 4 decimal places.
 
-This part of code initializes Reach stdlib and declares our players blockchain accounts. It declares starting balance of accounts as well as Alice deploying the contract.
-"parseCurrency" function is used to convert the crypto amount to micro algos.
+const getBalance = async (who) => fmt(await stdlib.balanceOf(acc));
 
+Function getBalance reads the value of users account and formats it using fmt function
+that was defined earlier.
+
+
+const before = await getBalance();
+
+
+
+console.log(`Your balance is ${before}`);
+
+Variable before stores the result of getBalance and is printed in console
 
 const HAND = [0, 1, 2, 3, 4, 5];
 const VOCAL = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 const OUTCOME = ['Bob wins', 'Draw', 'Alice wins'];
 
+These variables are arrays which store possible values of users raised fingers(HAND), 
+users guess(VOCAL) and the outcome of the game (OUTCOME)
 
-Values which represent number of raised fingers(const HAND), players guess of number of raised fingers(const VOCAL), and possible outcomes are declared.
+const interact = { ...stdlib.hasRandom };
 
-const Player = (Who) => ({
-  ...stdlib.hasRandom,
-  getHand: async () => { // <-- async now
-    const hand = Math.floor(Math.random() * 6);
-    console.log(`${Who} raised ${HAND[hand]} fingers`);
 
-    if ( Math.random() <= 0.01 ) {
-      for ( let i = 0; i < 10; i++ ) {
-        console.log(`  ${Who} takes their sweet time sending it back...`);
-        await stdlib.wait(1);
+interact.getHand = async () => { // <-- async now
+    const hand = await ask.ask(`How many fingers do you raise (1-5)`, (x) => {
+      const hand = HAND[x];
+      if ( hand === undefined || hand==0 ) {
+       throw Error('Invalid input');
       }
-    }
-    return hand;
-  },
+     return hand;
+   });
+   console.log(`You raised ${HAND[hand]} fingers`);
+   return hand;
+ };
 
-Players number of raised fingers is randomly choosen using Math.Random and corresponding text is being print out in console.
+    interact.getVocal = async () => {
+      const vocal = await ask.ask(`Say how many fingers you think are raised (2-10)?`, (x) => {
+        const vocal= VOCAL[x];
+         if ( vocal === undefined || vocal==0 || vocal==1 ) {
+          throw Error(`Invalid input`);
+         }
+        return vocal;
+      });
+      console.log(`You said there are ${VOCAL[vocal]} fingers`);
+      return vocal;
+    }; 
 
-  getVocal:  async (hand) => {
-    // vocal should be greater than or equal to number of fingers thrown
-     const vocal= Math.floor(Math.random() * 6) + HAND[hand];
-    // occasional timeout
-     if ( Math.random() <= 0.01 ) {
-       for ( let i = 0; i < 10; i++ ) {
-         console.log(`  ${Who} takes their sweet time sending it back...`);
-         await stdlib.wait(1);
-       }
-     }
-     console.log(`${Who} guessed total of ${vocal}`);  
-     return vocal;
-   },
-   seeWinning: (winningNumber) => {   
+  getHand and getVocal functions prompt the user to input number of fingers which they raise
+  and which they will guess is raised and assign the values to hand and vocal variable .They throw an error if input is invalid(at least one finger must be raised, 
+  and there can not be less than 2 or more than 10 fingers total).
+
+   interact.seeWinning = (winningNumber) => {   
     console.log(`Actual total fingers raised: ${winningNumber}`);
-  },
+  };
+  Prints total number of raised fingers to the console
+
+  interact.seeOutcome = async (outcome) => {
+    console.log(`${OUTCOME[outcome]}`);
+  };
+
+Prints outcome of the game to the console
+
+  interact.informTimeout = () => {
+    console.log(`${who} observed a timeout`);
+    process.exit(1);
+  };
+
+Notifies user of a timeout
 
 
-  
-  seeOutcome: (outcome) => {
-    console.log(`${Who} saw outcome ${OUTCOME[outcome]}`);
-  },
-  informTimeout: () => {
-    console.log(`${Who} observed a timeout`);
-  },
-});
+if (isAlice) {
 
-Methods which enable player to guess a certain number of fingers(getVocal), see the winner and outcome of the game are being declared.
+  const amt = await ask.ask(
+    'Enter the amount to wager',
+    stdlib.parseCurrency
+    );
+    interact.wager = amt;
+  interact.deadline = { ETH: 100, ALGO: 100, CFX: 1000 }[stdlib.connector];
+} else {
+  interact.acceptWager = async (amt) => {
+    const accepted = await ask.ask(
+      `Do you accept the wager amount of: ${fmt(amt)}?`,
+      ask.yesno
+    );
+    if (!accepted) {
+      process.exit(0);
+    }
+  };
+}
 
-await Promise.all([
-  ctcAlice.p.Alice({
-    ...Player('Alice'),
-    wager: stdlib.parseCurrency(5),
-    deadline: 10,
-  }),
-  ctcBob.p.Bob({
-    ...Player('Bob'),
-    acceptWager: (amt) => {
-      console.log(`Bob accepts the wager of ${fmt(amt)}.`); //Bob accepts wager
-    },
-  }),
-]);
-
-Backends for Alice and Bob are deployed. Alice sets the wager, and Bob accepts it. Deadline is set to 10 seconds.
+Prompts the player Alice to enter the amount of wager, and Bob to accept it.  
 
 
-const afterAlice = await getBalance(accAlice);
-const afterBob = await getBalance(accBob);
 
-console.log(`Alice went from ${beforeAlice} to ${afterAlice}.`);
-console.log(`Bob went from ${beforeBob} to ${afterBob}.`);
+const part = isAlice ? ctc.p.Alice : ctc.p.Bob;
+await part(interact);
 
-Variables afterAlice and afterBob obtain the new values of players accounts balances, and are then displayed in console.
+Determines the which account belongs to the user based on player user choose on the beginning
+
+const after = await getBalance();
+console.log(`Your balance is now: ${after}`);
+
+'after' gets assigned the value of players account balance and is printed in console
+
+
+ask.done();
+
+Ask library is no longer being used
+
+
